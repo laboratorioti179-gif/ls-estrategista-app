@@ -1,0 +1,4311 @@
+{
+  "name": "LS | IA Estrategista | Aplicação v1",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        16
+      ],
+      "id": "3159ad6d-0a16-42cb-adba-1ce6d1d877b8",
+      "name": "INICIAR ESTRATÉGIA"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_profile",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -64
+      ],
+      "id": "a16b5366-0aa6-47d9-88c6-503748c4a3e4",
+      "name": "BUSCAR PERFIL JONATHAN",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_daily_context",
+        "orderBy": "created_at.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "context_date",
+              "condition": "eq",
+              "keyValue": "={{ $now.toISODate() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        160
+      ],
+      "id": "20cb40d5-439d-4b61-b7c0-5ebe3ce43c07",
+      "name": "BUSCAR CONTEXTO DO DIA",
+      "retryOnFail": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "daily_context",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        96,
+        160
+      ],
+      "id": "40abe5c8-91b5-47b5-a588-3187b52d9d8c",
+      "name": "AGRUPAR CONTEXTO DO DIA"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        368,
+        -48
+      ],
+      "id": "ae696fda-9aff-482b-ae2e-43e3a72cbe3a",
+      "name": "MONTAR CONTEXTO DA IA"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-terra",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-terra"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        864,
+        192
+      ],
+      "id": "bb346047-52bf-4de3-88b8-d6079542ab3a",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "u4sRRA48uZmKp71l",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise os dados abaixo sobre o perfil de Jonathan Pinheiro e o contexto atual do dia.\n\nDADOS DISPONÍVEIS:\n{{ JSON.stringify($json) }}\n\nHISTÓRICO EDITORIAL:\n\nCONTEXTO MAIS RECENTE DO DIA:\n{{ JSON.stringify(($json.daily_context || []).slice(-1)[0] || {}) }}\n\nREGRA DE PRIORIDADE DO CONTEXTO:\n\n- O CONTEXTO MAIS RECENTE DO DIA é a principal referência para decidir a pauta atual.\n- Os contextos anteriores do mesmo dia servem apenas como complemento.\n- Não escolha um contexto antigo como tema principal quando existir um contexto mais recente claro e com potencial de conteúdo.\n- Se houver conflito de assunto ou intenção entre contextos do mesmo dia, o mais recente tem prioridade.\n- Preserve o assunto específico informado por Jonathan.\n\nExemplo:\nSe o contexto mais recente for \"Hoje estou fazendo melhorias no meu sistema AutoPrime\",\na pauta deve partir do AutoPrime, produto, sistema, SaaS, desenvolvimento, funcionalidade\nou problema que está sendo resolvido.\n\nNão transforme automaticamente esse contexto em uma pauta genérica sobre\n\"ser empresário\", \"rotina de empresário\", \"empreendedorismo\" ou \"bastidores de CEO\"\nquando o acontecimento principal é um produto ou sistema específico.\n\nOs dados recebidos podem conter o campo editorial_history,\ncom os planejamentos mais recentes do perfil.\n\nAntes de definir a nova estratégia:\n\n- analise os temas utilizados recentemente;\n- observe quais pilares foram mais usados;\n- observe os formatos recentes;\n- evite repetir o mesmo tema, ângulo ou gancho sem uma justificativa estratégica;\n- procure equilíbrio entre os diferentes universos de conteúdo do Jonathan;\n- não varie apenas por variar: o contexto real do dia continua sendo a principal matéria-prima;\n- se um assunto recente voltar a acontecer, procure um novo ângulo;\n- conteúdos com status approved, scheduled ou published devem ser considerados como já utilizados ou planejados;\n- conteúdos pending_approval também devem ser considerados para evitar duplicidade.\n\nSua tarefa neste teste é tomar UMA decisão editorial.\n\nResponda:\n\n1. Qual é a melhor oportunidade de conteúdo para hoje?\n2. Qual deve ser o objetivo estratégico desse conteúdo?\n3. Qual universo/pilar do perfil está sendo trabalhado?\n4. Qual formato principal você recomenda: Reel, Carrossel ou Post?\n5. Por que esse assunto vale a pena ser publicado no perfil do Jonathan?\n6. Como os Stories de hoje podem complementar esse conteúdo?\n\nNão crie ainda o conteúdo completo.\n\nNeste momento, tome apenas a decisão estratégica editorial.\n\nRetorne obrigatoriamente a resposta seguindo o formato estruturado definido no Output Parser.\n\nREGRAS PARA CONTEÚDOS REJEITADOS:\n\n- Conteúdos com status \"rejected\" representam feedback negativo explícito de Jonathan.\n- Leia sempre o campo approval_notes dos conteúdos rejeitados.\n- NÃO repita o mesmo tema, ângulo, gancho ou abordagem que motivou a rejeição.\n- Quando approval_notes indicar que Jonathan queria outro foco, esse feedback tem prioridade na próxima estratégia.\n- Exemplo: se Jonathan disser que pediu um tema de sistema/SaaS e não um conteúdo sobre ser empresário, a nova pauta deve focar no sistema, produto, SaaS, funcionalidade, problema resolvido ou desenvolvimento — e não transformar o assunto em \"rotina de empresário\".\n\nO pilar_principal e o pilar_secundario devem utilizar, sempre que possível, as keys presentes em content_universe.\n\nO formato_principal deve ser apenas:\nreel, carrossel ou post.\n\nAo escolher a pauta de hoje, considere simultaneamente:\n\n1. contexto real do dia;\n2. posicionamento do Jonathan;\n3. objetivos do perfil;\n4. histórico editorial recente;\n5. necessidade de variedade estratégica.\n\nNão invente acontecimentos que não estejam presentes no contexto fornecido.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é a Diretora de Estratégia de Conteúdo do perfil de Jonathan Pinheiro, CEO da LS.\n\nVocê não é apenas uma redatora. Seu trabalho é pensar como uma estrategista sênior de conteúdo, posicionamento, marca pessoal, storytelling, Instagram e vendas.\n\nO perfil é de Jonathan Pinheiro, e não da LS.\n\nA LS, AutoPrime, automações, sistemas, inteligência artificial, impressão 3D e outros projetos são elementos da história empresarial de Jonathan.\n\nAntes de recomendar qualquer conteúdo, considere:\n- posicionamento do perfil;\n- público;\n- objetivos;\n- contexto real do dia;\n- projetos em andamento;\n- potencial de gerar autoridade;\n- potencial de gerar identificação;\n- potencial de gerar relacionamento;\n- potencial comercial;\n- naturalidade.\n\nPriorize acontecimentos reais, projetos, problemas, soluções, bastidores, aprendizados, opiniões baseadas na experiência e demonstrações.\n\nEvite conteúdo genérico sobre IA, frases de guru, motivação vazia, venda em excesso, perfil com aparência de catálogo e textos artificiais.\n\nQuando existir um acontecimento real interessante no contexto do dia, prefira transformar esse acontecimento em narrativa.\n\nStories devem funcionar como ferramenta estratégica de narrativa, relacionamento e conversão, e não apenas como divulgação do conteúdo principal."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        912,
+        -32
+      ],
+      "id": "fb2d5886-e96d-4681-b70f-77f2d0e79620",
+      "name": "IA | ESTRATEGISTA"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"objetivo\": \"Construir autoridade mostrando uma aplicação real de inteligência artificial.\",\n  \"objetivo_secundario\": \"Gerar identificação com empresários que têm dificuldade em transformar sua rotina em conteúdo.\",\n  \"pilar_principal\": \"automacoes_ia\",\n  \"pilar_secundario\": \"ceo_bastidores\",\n  \"tema\": \"Construção da IA estrategista de conteúdo\",\n  \"angulo\": \"Mostrar Jonathan construindo uma solução para um problema que ele mesmo enfrenta como empresário.\",\n  \"formato_principal\": \"reel\",\n  \"motivo_estrategico\": \"O conteúdo mostra aplicação prática de tecnologia e reforça Jonathan como construtor de soluções.\",\n  \"mensagem_central\": \"Não basta usar IA para criar legendas. É preciso dar contexto do negócio para transformar rotina real em conteúdo estratégico.\",\n  \"estrategia_stories\": {\n    \"objetivo\": \"Mostrar bastidores, gerar identificação e abrir conversa.\",\n    \"quantidade_sugerida\": 5,\n    \"linha_narrativa\": \"contexto > bastidor > interação > insight > conteúdo principal\"\n  },\n  \"venda_direta\": false,\n  \"cta_estrategico\": \"Estimular a audiência a contar o que mais dificulta sua produção de conteúdo.\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1056,
+        160
+      ],
+      "id": "e7c4ff6d-bba1-42b6-977c-08bafcae9093",
+      "name": "ESTRUTURAR ESTRATÉGIA"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_content_plan",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "plan_date",
+              "fieldValue": "={{ $now.toISODate() }}"
+            },
+            {
+              "fieldId": "main_objective",
+              "fieldValue": "={{ $json.output.objetivo }}"
+            },
+            {
+              "fieldId": "main_theme",
+              "fieldValue": "={{ $json.output.tema }}"
+            },
+            {
+              "fieldId": "content_pillar",
+              "fieldValue": "={{ $json.output.pilar_principal }}"
+            },
+            {
+              "fieldId": "main_format",
+              "fieldValue": "={{ $json.output.formato_principal }}"
+            },
+            {
+              "fieldId": "strategic_reasoning",
+              "fieldValue": "={{ $json.output.motivo_estrategico }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=draft"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        -16
+      ],
+      "id": "a5611118-454e-4e3b-8f81-33c1a9bcbb25",
+      "name": "SALVAR PLANO ESTRATÉGICO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Crie o conteúdo de Instagram com base na estratégia editorial aprovada abaixo.\n\nPLANO SALVO:\n{{ JSON.stringify($json) }}\n\nESTRATÉGIA COMPLETA:\n{{ JSON.stringify($('IA | ESTRATEGISTA').item.json.output) }}\n\nCONTEXTO REAL DO DIA:\n{{ JSON.stringify($('MONTAR CONTEXTO DA IA').item.json.daily_context) }}\n\nVocê deve criar:\n\n1. O conteúdo principal definido pela estrategista.\n2. Uma sequência de Stories que complemente o conteúdo principal.\n\nREGRAS:\n\n- Não altere a estratégia escolhida.\n- Não invente acontecimentos.\n- Use os fatos presentes no contexto.\n- O perfil é de Jonathan Pinheiro, não da LS.\n- Jonathan deve soar humano, direto e natural.\n- Evite texto com aparência de IA.\n- Evite frases de guru.\n- Não transforme tudo em venda.\n- Stories não devem apenas repetir o Reel.\n- Stories devem construir narrativa.\n- O conteúdo deve parecer algo que Jonathan realmente falaria.\n- Prefira frases curtas e naturais para vídeos.\n\nIMPORTANTE:\nA stack atual desta automação é OpenAI + n8n + Supabase.\n\nNunca mencione Claude ou Anthropic, a menos que eles apareçam explicitamente\ncomo parte do contexto atual fornecido.\n\nNão reutilize nomes de tecnologias presentes em contextos antigos ou exemplos.\nConsidere sempre o contexto mais recente.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é um especialista sênior em criação de conteúdo para Instagram, storytelling, Reels, Stories, copywriting e marca pessoal.\n\nVocê trabalha para o perfil de Jonathan Pinheiro, CEO da LS.\n\nSua função não é definir a estratégia. A estratégia já foi definida por outro agente.\n\nSua função é transformar essa estratégia em conteúdo forte, natural e publicável.\n\nVocê domina:\n\n- roteiro de Reels;\n- ganchos;\n- storytelling;\n- retenção;\n- conteúdo de bastidores;\n- Stories estratégicos;\n- enquete e interação;\n- CTA;\n- escrita para fala;\n- conteúdo de autoridade;\n- conteúdo comercial sem aparência de propaganda.\n\nAo criar Stories, pense em uma sequência, e não em telas independentes.\n\nCada Story deve ter uma função dentro da narrativa.\n\nEvite:\n- clichês;\n- excesso de emojis;\n- frases genéricas;\n- texto corporativo;\n- linguagem artificial;\n- promessas exageradas;\n- excesso de explicação técnica.\n\nJonathan deve parecer um empresário mostrando o que está construindo na prática."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1696,
+        -16
+      ],
+      "id": "443c3298-10cc-498b-be7c-c9c48542e5ca",
+      "name": "IA | CRIADOR DE CONTEÚDO"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-terra",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-terra"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1696,
+        208
+      ],
+      "id": "b1d1bc70-97ce-4904-b075-74737eacce54",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "u4sRRA48uZmKp71l",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"conteudo_principal\": {\n    \"tipo\": \"reel\",\n    \"titulo_interno\": \"Bastidores da IA estrategista\",\n    \"gancho\": \"Eu percebi que o problema não era falta de ideia para postar.\",\n    \"roteiro\": [\n      {\n        \"ordem\": 1,\n        \"tipo\": \"fala\",\n        \"texto\": \"Eu percebi que o problema não era falta de ideia para postar.\"\n      },\n      {\n        \"ordem\": 2,\n        \"tipo\": \"fala\",\n        \"texto\": \"Era ter um monte de coisa acontecendo na empresa e não saber o que realmente valia virar conteúdo.\"\n      }\n    ],\n    \"texto_tela\": [\n      \"Transformando rotina em conteúdo\",\n      \"IA + contexto + estratégia\"\n    ],\n    \"legenda\": \"Legenda completa do conteúdo.\",\n    \"cta\": \"CTA do conteúdo.\",\n    \"briefing_visual\": \"Orientações de gravação, cenas e imagens.\"\n  },\n  \"stories\": [\n    {\n      \"ordem\": 1,\n      \"objetivo\": \"abrir narrativa\",\n      \"formato\": \"video_falado\",\n      \"texto\": \"Texto ou fala do primeiro Story.\",\n      \"visual\": \"Jonathan falando para a câmera.\",\n      \"interacao\": null\n    },\n    {\n      \"ordem\": 2,\n      \"objetivo\": \"mostrar bastidor\",\n      \"formato\": \"bastidor\",\n      \"texto\": \"Texto do segundo Story.\",\n      \"visual\": \"Tela do n8n.\",\n      \"interacao\": null\n    },\n    {\n      \"ordem\": 3,\n      \"objetivo\": \"gerar participação\",\n      \"formato\": \"enquete\",\n      \"texto\": \"O que mais trava seu conteúdo hoje?\",\n      \"visual\": \"Fundo simples ou bastidor.\",\n      \"interacao\": {\n        \"tipo\": \"enquete\",\n        \"opcoes\": [\n          \"Falta de tempo\",\n          \"Falta de ideia\"\n        ]\n      }\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1840,
+        240
+      ],
+      "id": "b8f04d8d-eb49-481e-8cb0-c54ebf99dd8e",
+      "name": "ESTRUTURAR CONTEÚDO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_content_items",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "plan_id",
+              "fieldValue": "={{ $('SALVAR PLANO ESTRATÉGICO').item.json.id }}"
+            },
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "content_type",
+              "fieldValue": "={{ $json.output.conteudo_principal.tipo.toLowerCase() }}"
+            },
+            {
+              "fieldId": "sequence_order",
+              "fieldValue": "=1"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.output.conteudo_principal.titulo_interno }}"
+            },
+            {
+              "fieldId": "hook",
+              "fieldValue": "={{ $json.output.conteudo_principal.gancho }}"
+            },
+            {
+              "fieldId": "script",
+              "fieldValue": "={{ JSON.stringify($json.output.conteudo_principal.roteiro) }}"
+            },
+            {
+              "fieldId": "caption",
+              "fieldValue": "={{ $json.output.conteudo_principal.legenda }}"
+            },
+            {
+              "fieldId": "cta",
+              "fieldValue": "={{ $json.output.conteudo_principal.cta }}"
+            },
+            {
+              "fieldId": "visual_brief",
+              "fieldValue": "={{ $json.output.conteudo_principal.briefing_visual }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "=draft"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        112
+      ],
+      "id": "2085f89c-c049-4a28-82eb-f15c3c41ac94",
+      "name": "SALVAR CONTEÚDO PRINCIPAL",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=output.stories",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        -80
+      ],
+      "id": "f4acc104-b193-467b-ac2b-eaf393b28581",
+      "name": "SEPARAR STORIES"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_content_items",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "plan_id",
+              "fieldValue": "={{ $('SALVAR PLANO ESTRATÉGICO').item.json.id }}"
+            },
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "content_type",
+              "fieldValue": "=story"
+            },
+            {
+              "fieldId": "sequence_order",
+              "fieldValue": "={{ $json.ordem }}"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ 'Story ' + $json.ordem + ' - ' + $json.formato }}"
+            },
+            {
+              "fieldId": "hook",
+              "fieldValue": "={{ $json.objetivo }}"
+            },
+            {
+              "fieldId": "script",
+              "fieldValue": "={{ $json.texto }}"
+            },
+            {
+              "fieldId": "caption"
+            },
+            {
+              "fieldId": "cta",
+              "fieldValue": "={{ $json.interacao.tipo !== 'nenhuma' ? JSON.stringify($json.interacao) : '' }}"
+            },
+            {
+              "fieldId": "visual_brief",
+              "fieldValue": "={{ $json.visual }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "draft"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        -80
+      ],
+      "id": "b1a11f15-f767-46db-a3b0-4e70c57b4025",
+      "name": "SALVAR STORIES",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('SALVAR PLANO ESTRATÉGICO').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2672,
+        -80
+      ],
+      "id": "2f4d1b9d-4bde-4708-9463-7a303ddae599",
+      "name": "ENVIAR PARA APROVAÇÃO",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ffa0b483-db2d-4543-9953-0f930d60996b",
+              "name": "approval_message",
+              "value": "={{\n`📲 *CONTEÚDO PARA APROVAÇÃO*\n\n🎯 *Objetivo*\n${$('IA | ESTRATEGISTA').item.json.output.objetivo}\n\n💡 *Tema*\n${$('IA | ESTRATEGISTA').item.json.output.tema}\n\n📌 *Pilar*\n${$('IA | ESTRATEGISTA').item.json.output.pilar_principal}\n\n🎬 *Formato*\n${$('IA | CRIADOR DE CONTEÚDO').item.json.output.conteudo_principal.tipo}\n\n🔥 *Gancho*\n${$('IA | CRIADOR DE CONTEÚDO').item.json.output.conteudo_principal.gancho}\n\n📝 *Legenda*\n${$('IA | CRIADOR DE CONTEÚDO').item.json.output.conteudo_principal.legenda}\n\n📱 *STORIES*\n${$('IA | CRIADOR DE CONTEÚDO').item.json.output.stories.map(story => {\n\nconst interacao =\nstory.interacao &&\nstory.interacao.tipo &&\nstory.interacao.tipo !== 'nenhuma'\n?\n`\\n🎯 Interação: ${story.interacao.tipo}${\nstory.interacao.opcoes && story.interacao.opcoes.length\n? ` — ${story.interacao.opcoes.join(' / ')}`\n: ''\n}`\n:\n'';\n\nreturn `\n*Story ${story.ordem} — ${story.formato}*\n\n${story.texto}\n\n🎥 Visual:\n${story.visual}\n${interacao}`;\n}).join('\\n\\n')}\n\n🆔 *Plano*\n${$('SALVAR PLANO ESTRATÉGICO').item.json.id}\n\n*`\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        -80
+      ],
+      "id": "e152c1eb-2249-48b4-88f8-2f333525d215",
+      "name": "MONTAR MENSAGEM DE APROVAÇÃO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=approval_requested"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR MENSAGEM DE APROVAÇÃO').first().json.approval_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[\"APROVAR\", \"ALTERAR\", \"REJEITAR\"]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3088,
+        -80
+      ],
+      "id": "7ed0f37c-a01b-424e-9887-293b8cc76488",
+      "name": "APP | APPROVAL_REQUESTED",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ls-estrategista-app",
+        "options": {},
+        "authentication": "headerAuth",
+        "responseMode": "onReceived"
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -624,
+        1024
+      ],
+      "id": "c3a987b0-b134-4721-9d8d-a01ca607c540",
+      "name": "APP | RECEBER COMANDO",
+      "webhookId": "0ae9e32b-1e38-4683-be71-408b1cc758b5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "08d76305-b41b-4a96-a081-598b267aca1b",
+              "name": "profile_key",
+              "value": "={{ ($json.body?.profile_key || 'jonathan_ceo_ls').toString() }}",
+              "type": "string"
+            },
+            {
+              "id": "e6f43b14-46d4-4284-a800-88d682256d51",
+              "name": "comando",
+              "value": "={{ String($json.body?.action || $json.body?.comando || $json.body?.text || '').trim().toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "2a28cefb-5c6b-4333-9fef-8eeb79a77872",
+              "name": "remetente",
+              "value": "=app_authenticated",
+              "type": "string"
+            },
+            {
+              "id": "73c4f0d6-8349-462d-8035-368a7e770089",
+              "name": "nome_remetente",
+              "value": "=Jonathan",
+              "type": "string"
+            },
+            {
+              "id": "2092e382-c7ff-4d46-b75f-7803e1dd7d58",
+              "name": "from_me",
+              "value": "=false",
+              "type": "string"
+            },
+            {
+              "id": "2978fdd3-e832-44bd-8873-2fe237c32628",
+              "name": "event_type",
+              "value": "=app_command",
+              "type": "string"
+            },
+            {
+              "id": "8a2d344a-1a59-4403-9dec-64acc75a2710",
+              "name": "acao",
+              "value": "={{ (() => { const b=$json.body || {}; const t=String(b.action || b.comando || b.text || '').trim().toUpperCase(); if(['APROVAR','ALTERAR','REJEITAR','GERAR_CONTEUDO','USAR_EXISTENTE','GERAR_NOVO'].includes(t)) return t; if(t.startsWith('ALTERAR'))return 'ALTERAR'; if(t.startsWith('REJEITAR'))return 'REJEITAR'; return 'CONTEXTO'; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "2b2afe31-2ad5-4950-94be-914d78c5ef8b",
+              "name": "pedido_alteracao",
+              "value": "={{ String($json.body?.feedback || $json.body?.text || '').trim().replace(/^ALTERAR\\s*[-:–—]?\\s*/i,'').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "1dc4eedc-04a0-4fc8-b58d-16868c982133",
+              "name": "motivo_rejeicao",
+              "value": "={{ String($json.body?.feedback || $json.body?.text || '').trim().replace(/^REJEITAR\\s*[-:–—]?\\s*/i,'').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "26034a3b-1d5c-47c1-ac0a-e47c997fe7c3",
+              "name": "contexto_texto",
+              "value": "={{ String($json.body?.text || '').trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        1024
+      ],
+      "id": "f263a74f-33c4-4ab0-877c-c47cd81e69be",
+      "name": "APP | NORMALIZAR COMANDO"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "APROVAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c1cbb247-da60-4597-8166-f76c86718a84"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "APROVAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "266726fa-0677-4e72-9958-f77d99455864",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "ALTERAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ALTERAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "a0340e01-368c-4ad5-b038-de82e085177f",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "REJEITAR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=REJEITAR"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "0cb52fa1-12a3-480f-8cfe-ec01889a7cbe",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "CONTEXTO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CONTEXTO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ac643d6c-a7dd-4f4a-9156-3bad8917b5cb",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "GERAR_CONTEUDO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "GERAR_CONTEUDO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ac7e8e11-60bc-43c8-90b8-9a3f4a8da524",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "USAR_EXISTENTE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "USAR_EXISTENTE"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "437f0f21-0884-466a-95ac-086c916ab57e",
+                    "leftValue": "={{ $json.acao }}",
+                    "rightValue": "GERAR_NOVO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "GERAR_NOVO"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        1120
+      ],
+      "id": "ee403ae8-bd3e-4fee-9481-29ac233ddb63",
+      "name": "DECISÃO JONATHAN"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "96f60f29-3b8e-4c19-a7bd-b014b155c0e6",
+              "leftValue": "={{ $json.profile_key }}",
+              "rightValue": "jonathan_ceo_ls",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -208,
+        1024
+      ],
+      "id": "a7fe5260-31a2-49ae-9ecb-560711ae978c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        880
+      ],
+      "id": "149dbb5b-81b3-4f66-bb10-10788f7ce8e7",
+      "name": "BUSCAR PLANO PENDENTE",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PENDENTE').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "=approved"
+            },
+            {
+              "fieldId": "approved_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        880
+      ],
+      "id": "8285f72f-5dcd-44b7-9bf7-f57cbc0bf864",
+      "name": "APROVAR PLANO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_items",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PENDENTE').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "=approved"
+            },
+            {
+              "fieldId": "approved_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3008,
+        880
+      ],
+      "id": "69700924-2179-49e7-bd23-16a6eeb12c44",
+      "name": "APROVAR CONTEÚDOS",
+      "executeOnce": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        1104
+      ],
+      "id": "266eb5ca-fc51-4896-862f-16276cb941ac",
+      "name": "BUSCAR PLANO PARA ALTERAR",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_items",
+        "orderBy": "sequence_order.asc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA ALTERAR').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        1104
+      ],
+      "id": "f9492ff9-1fa2-41f9-b7bb-18d52d7dcd85",
+      "name": "BUSCAR CONTEÚDOS PARA ALTERAR",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "conteudos_atuais",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2992,
+        1104
+      ],
+      "id": "f5112021-670d-4398-a34a-76821a13b1a2",
+      "name": "AGRUPAR CONTEÚDOS ATUAIS"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fb83915d-810c-4c5d-84ca-71b3ef7b0b96",
+              "name": "pedido_alteracao",
+              "value": "={{ $('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao }}",
+              "type": "string"
+            },
+            {
+              "id": "fda214e1-d886-4ed1-909a-31005a76ed3c",
+              "name": "plano",
+              "value": "={{ $('BUSCAR PLANO PARA ALTERAR').first().json }}",
+              "type": "string"
+            },
+            {
+              "id": "0fa6af5c-f69f-4037-8d66-bde5c7a003a6",
+              "name": "conteudos_atuais",
+              "value": "={{ $json.conteudos_atuais }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3184,
+        1104
+      ],
+      "id": "89a29b57-68e2-4bcc-a5de-330755e7ee93",
+      "name": "MONTAR PEDIDO DE ALTERAÇÃO"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Jonathan solicitou uma alteração no conteúdo que já havia sido criado.\n\nPEDIDO DE ALTERAÇÃO:\n{{ $json.pedido_alteracao }}\n\nPLANO ESTRATÉGICO:\n{{ JSON.stringify($json.plano) }}\n\nCONTEÚDO ATUAL:\n{{ JSON.stringify($json.conteudos_atuais) }}\n\nRevise o conteúdo seguindo exatamente o pedido de Jonathan.\n\nREGRAS IMPORTANTES:\n\n- Não crie uma nova estratégia.\n- Preserve o objetivo, tema e posicionamento definidos no plano.\n- Altere apenas o necessário para atender ao pedido.\n- Preserve aquilo que já está bom e não foi afetado pelo pedido.\n- Não invente acontecimentos.\n- Não transforme o conteúdo em venda se isso não fazia parte da estratégia.\n- O perfil é de Jonathan Pinheiro.\n- O texto precisa soar natural, humano e falável.\n- Evite linguagem de guru.\n- Evite aparência de texto produzido por IA.\n- Stories devem continuar formando uma sequência narrativa.\n- Não reduza a qualidade estratégica para simplesmente obedecer literalmente ao pedido.\n- Se Jonathan pedir algo \"menos técnico\", traduza a tecnologia para linguagem mais simples sem remover a ideia central.\n- A stack atual é OpenAI + n8n + Supabase. Nunca substitua OpenAI por Claude.\n\nRetorne novamente o conteúdo principal completo e toda a sequência completa de Stories, mesmo que apenas uma parte tenha sido alterada.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Você é o Revisor Sênior de Conteúdo do perfil de Jonathan Pinheiro.\n\nOutro agente já definiu a estratégia e outro agente já criou o conteúdo.\n\nSua função é revisar conteúdos a partir do feedback humano de Jonathan sem perder a estratégia original.\n\nVocê deve interpretar a intenção do feedback, preservar o que já funciona e modificar somente o necessário.\n\nAo receber pedidos como:\n\"menos técnico\"\n\"mais direto\"\n\"gancho mais forte\"\n\"Stories mais curtos\"\n\"não gostei dessa frase\"\n\"quero algo mais comercial\"\n\nvocê deve aplicar o ajuste mantendo coerência, naturalidade, posicionamento e qualidade.\n\nO objetivo é parecer que um estrategista humano recebeu uma devolutiva e refinou o conteúdo, e não que todo o material foi recriado aleatoriamente."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3552,
+        1104
+      ],
+      "id": "0d66ad05-ac56-486a-9a40-dd8ba1cc6773",
+      "name": "IA | REVISOR DE CONTEÚDO"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-terra",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-terra"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3552,
+        1344
+      ],
+      "id": "c414f407-a276-4d33-915a-14d84d20149f",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "u4sRRA48uZmKp71l",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"conteudo_principal\": {\n    \"tipo\": \"reel\",\n    \"titulo_interno\": \"Título\",\n    \"gancho\": \"Gancho revisado\",\n    \"roteiro\": [\n      {\n        \"ordem\": 1,\n        \"tipo\": \"fala\",\n        \"texto\": \"Texto\"\n      }\n    ],\n    \"texto_tela\": [\n      \"Texto\"\n    ],\n    \"legenda\": \"Legenda completa\",\n    \"cta\": \"CTA\",\n    \"briefing_visual\": \"Orientações visuais\"\n  },\n  \"stories\": [\n    {\n      \"ordem\": 1,\n      \"objetivo\": \"Objetivo\",\n      \"formato\": \"Vídeo selfie\",\n      \"texto\": \"Texto\",\n      \"visual\": \"Orientação visual\",\n      \"interacao\": {\n        \"tipo\": \"nenhuma\",\n        \"opcoes\": []\n      }\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3712,
+        1408
+      ],
+      "id": "099cd777-44df-4002-86af-91268bdb5293",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_items",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA ALTERAR').first().json.id }}"
+            },
+            {
+              "keyName": "content_type",
+              "condition": "eq",
+              "keyValue": "reel"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $json.output.conteudo_principal.titulo_interno }}"
+            },
+            {
+              "fieldId": "hook",
+              "fieldValue": "={{ $json.output.conteudo_principal.gancho }}"
+            },
+            {
+              "fieldId": "script",
+              "fieldValue": "={{ JSON.stringify($json.output.conteudo_principal.roteiro) }}"
+            },
+            {
+              "fieldId": "caption",
+              "fieldValue": "={{ $json.output.conteudo_principal.legenda }}"
+            },
+            {
+              "fieldId": "cta",
+              "fieldValue": "={{ $json.output.conteudo_principal.cta }}"
+            },
+            {
+              "fieldId": "visual_brief",
+              "fieldValue": "={{ $json.output.conteudo_principal.briefing_visual }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "draft"
+            },
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        1104
+      ],
+      "id": "c48866d0-ddec-4f60-8684-dedc1f5bf73d",
+      "name": "ATUALIZAR REEL",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.stories",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        1280
+      ],
+      "id": "a98ea869-03ee-42c0-9507-b27269cd2adf",
+      "name": "SEPARAR STORIES REVISADOS"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_items",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA ALTERAR').first().json.id }}"
+            },
+            {
+              "keyName": "content_type",
+              "condition": "eq",
+              "keyValue": "story"
+            },
+            {
+              "keyName": "sequence_order",
+              "condition": "eq",
+              "keyValue": "={{ $json.ordem }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ 'Story ' + $json.ordem + ' - ' + $json.formato }}"
+            },
+            {
+              "fieldId": "hook",
+              "fieldValue": "={{ $json.objetivo }}"
+            },
+            {
+              "fieldId": "script",
+              "fieldValue": "={{ $json.texto }}"
+            },
+            {
+              "fieldId": "cta",
+              "fieldValue": "={{ $json.interacao.tipo !== 'nenhuma' ? JSON.stringify($json.interacao) : '' }}"
+            },
+            {
+              "fieldId": "visual_brief",
+              "fieldValue": "={{ $json.visual }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "draft"
+            },
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4224,
+        1280
+      ],
+      "id": "59f17b72-8fe5-41bb-84d0-5b67f8ee2668",
+      "name": "ATUALIZAR STORIES",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA ALTERAR').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "pending_approval"
+            },
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4464,
+        1280
+      ],
+      "id": "3cdb133c-802a-46af-a615-1a91016b6abd",
+      "name": "ATUALIZAR PLANO APÓS REVISÃO",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=approval_revised"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR NOVA APROVAÇÃO').first().json.revised_approval_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[\"APROVAR\", \"ALTERAR\", \"REJEITAR\"]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4816,
+        1280
+      ],
+      "id": "0c3dbd65-f8f5-408b-9b12-0a454409bc5b",
+      "name": "APP | APPROVAL_REVISED",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        1568
+      ],
+      "id": "00e32802-9324-462f-bd1c-f71b33843350",
+      "name": "BUSCAR PLANO PARA REJEITAR",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA REJEITAR').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "rejected"
+            },
+            {
+              "fieldId": "rejected_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('RESOLVER AÇÃO PENDENTE').first().json.motivo_rejeicao || 'Conteúdo rejeitado pelo Jonathan sem motivo informado.' }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2736,
+        1568
+      ],
+      "id": "050cc0e0-40de-4b87-8a40-65c298d43805",
+      "name": "REJEITAR PLANO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_items",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA REJEITAR').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "=rejected"
+            },
+            {
+              "fieldId": "rejected_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('RESOLVER AÇÃO PENDENTE').first().json.motivo_rejeicao || 'Conteúdo rejeitado pelo Jonathan sem motivo informado.' }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2912,
+        1568
+      ],
+      "id": "2456386a-7e4f-4231-bcb9-b40bd3bb9f2d",
+      "name": "REJEITAR CONTEÚDOS",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b3cf90f6-eace-40ba-bfdd-57885d74553e",
+              "name": "confirmation_message",
+              "value": "={{\n(() => {\n  const motivo =\n    $('RESOLVER AÇÃO PENDENTE').first().json.motivo_rejeicao || '';\n\n  return `❌ *CONTEÚDO REJEITADO*\n\nO planejamento foi encerrado e não seguirá para produção.\n\n${motivo\n  ? `📝 *Motivo:*\\n${motivo}`\n  : 'Nenhum motivo foi informado.'}\n\nEsse conteúdo continuará registrado no histórico para evitar que a IA repita a mesma abordagem futuramente.`;\n})()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3088,
+        1568
+      ],
+      "id": "5c855483-3c14-4312-9d28-712086018ec9",
+      "name": "MONTAR CONFIRMAÇÃO REJEIÇÃO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=rejected"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR CONFIRMAÇÃO REJEIÇÃO').first().json.confirmation_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3264,
+        1568
+      ],
+      "id": "be47e63e-ddd2-4392-96e1-a1721aa31902",
+      "name": "APP | REJECTED",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        704,
+        2288
+      ],
+      "id": "56c97ab1-8afa-476d-ba4f-bfe2e03375ef",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "u4sRRA48uZmKp71l",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"project_area\": \"automacoes_ia\",\n  \"importance\": \"normal\",\n  \"can_be_content\": true,\n  \"notes\": \"Bastidor de desenvolvimento de uma automação da LS com potencial para mostrar aplicação prática de tecnologia.\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        848,
+        2416
+      ],
+      "id": "f184c530-71b8-482c-a67d-9b885248ca73",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_daily_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "context_date",
+              "fieldValue": "={{ $now.toISODate() }}"
+            },
+            {
+              "fieldId": "context_text",
+              "fieldValue": "={{ $('APP | NORMALIZAR COMANDO').first().json.contexto_texto }}"
+            },
+            {
+              "fieldId": "project_area",
+              "fieldValue": "={{ $json.output.project_area }}"
+            },
+            {
+              "fieldId": "importance",
+              "fieldValue": "={{ $json.output.importance }}"
+            },
+            {
+              "fieldId": "can_be_content",
+              "fieldValue": "={{ $json.output.can_be_content }}"
+            },
+            {
+              "fieldId": "notes",
+              "fieldValue": "={{ $json.output.notes }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        2048
+      ],
+      "id": "a651c5c9-80db-4f15-89ca-5b0cb4530a93",
+      "name": "SALVAR CONTEXTO DO WHATSAPP",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e524dbe7-da12-4010-bfb0-e533f09614dd",
+              "name": "confirmation_message",
+              "value": "={{\n`✅ *Contexto registrado!*\n\nAnotei o que está acontecendo hoje e já salvei isso na memória do perfil.\n\n📌 *Área identificada:*\n${$('IA | INTERPRETAR CONTEXTO').first().json.output.project_area}\n\n💡 *Potencial para conteúdo:*\n${$('IA | INTERPRETAR CONTEXTO').first().json.output.can_be_content ? 'Sim' : 'Baixo'}\n\nQuer transformar os contextos de hoje em conteúdo?`\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        2048
+      ],
+      "id": "1dac8a04-ca55-402e-a1cf-ec32fafdc99f",
+      "name": "MONTAR CONFIRMAÇÃO CONTEXTO"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analise a mensagem abaixo enviada por Jonathan Pinheiro pelo WhatsApp.\n\nMENSAGEM:\n{{ $json.contexto_texto }}\n\nSua função é classificar esse acontecimento para a memória de conteúdo do perfil.\n\nIdentifique:\n\n1. A área principal relacionada ao acontecimento.\n2. A importância editorial.\n3. Se existe potencial para virar conteúdo.\n4. Uma observação curta que ajude a estrategista posteriormente.\n\nÁREAS PERMITIDAS:\n\nCOMO CLASSIFICAR AS ÁREAS:\n\nceo_bastidores:\nrotina do Jonathan como empresário, decisões, reuniões, gestão, desafios e bastidores pessoais do trabalho.\n\nautomacoes_ia:\nautomações, agentes de IA, n8n, integrações, inteligência artificial e processos automatizados.\n\nsistemas_apps:\ncriação e desenvolvimento de sistemas, aplicativos, plataformas, sites e funcionalidades de software.\n\nautoprime:\nqualquer acontecimento diretamente relacionado ao AutoPrime.\n\nimpressao_3d:\nimpressão 3D, modelagem, peças, chaveiros, brindes personalizados, protótipos, produção em impressora 3D e pedidos desse tipo.\n\ncases:\nresultados, entregas, problemas resolvidos e histórias de clientes quando o foco principal for o resultado obtido.\n\noutros:\nuse somente quando o acontecimento realmente não se encaixar em nenhuma das áreas acima.\n\nREGRA DE PRIORIDADE ABSOLUTA:\n\n- Se a mensagem mencionar \"AutoPrime\", \"autoprime\" ou \"Auto Prime\",\n  project_area DEVE ser \"autoprime\".\n\n- Se mencionar sistema, SaaS, aplicativo, plataforma, software,\n  desenvolvimento ou melhoria de funcionalidades sem citar um projeto específico,\n  use \"sistemas_apps\".\n\n- Se citar AutoPrime junto com sistema, SaaS, aplicativo, plataforma ou software,\n  a área continua sendo \"autoprime\".\n\n- NÃO classifique como \"ceo_bastidores\" apenas porque Jonathan está trabalhando\n  ou fazendo melhorias em um produto.\n\n- \"ceo_bastidores\" só deve ser usado quando o assunto principal for rotina,\n  gestão, decisões, reuniões ou desafios como empresário.\n\n- \"outros\" é apenas o último recurso.\n\nREGRA:\nSempre escolha a área específica antes de usar \"outros\".\nIMPORTÂNCIA PERMITIDA:\n\nlow\nnormal\nhigh\n\nNão invente acontecimentos.\nAnalise somente o que Jonathan informou.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        704,
+        2048
+      ],
+      "id": "5dd23292-61ed-496e-97e1-3a6ffc09b8a3",
+      "name": "IA | INTERPRETAR CONTEXTO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=context_saved"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR CONFIRMAÇÃO CONTEXTO').first().json.confirmation_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[\"GERAR_CONTEUDO\"]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        2048
+      ],
+      "id": "2a3a6dc3-6546-40ca-8a0d-22aa8501072e",
+      "name": "APP | CONTEXT_SAVED",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "33e0ea4f-8f29-409b-b64e-3cd5442f0d02",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -640,
+        512
+      ],
+      "id": "5fb6b992-76c0-415d-bad5-e2e1254bd8d9",
+      "name": "INICIAR GERAÇÃO DE CONTEÚDO"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 10,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        624
+      ],
+      "id": "c572eea1-3305-4333-8b0e-149276381873",
+      "name": "BUSCAR HISTÓRICO EDITORIAL",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b23300f7-d602-497a-bcb8-ef6b5c085058",
+              "name": "plan_date",
+              "value": "={{ $json.plan_date }}",
+              "type": "string"
+            },
+            {
+              "id": "df52903e-16a6-45ee-aa8c-1d0c26ca4e67",
+              "name": "main_objective",
+              "value": "={{ $json.main_objective }}",
+              "type": "string"
+            },
+            {
+              "id": "b33aead7-8282-4441-8342-2c9ff7c7fd56",
+              "name": "main_theme",
+              "value": "={{ $json.main_theme }}",
+              "type": "string"
+            },
+            {
+              "id": "3eb1beae-9ca6-43a6-8c07-62cff0367747",
+              "name": "content_pillar",
+              "value": "={{ $json.content_pillar }}",
+              "type": "string"
+            },
+            {
+              "id": "84e5222b-c85d-424b-9e72-1e361ec38f1d",
+              "name": "main_format",
+              "value": "={{ $json.main_format }}",
+              "type": "string"
+            },
+            {
+              "id": "d0c4b6fe-fab4-4800-9118-a0a4a2de2dbf",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "e9f0874e-a9c2-43d8-8266-6b1b1bea40d8",
+              "name": "scheduled_for",
+              "value": "={{ $json.scheduled_for }}",
+              "type": "string"
+            },
+            {
+              "id": "e9adf68c-8bad-468e-b6f3-06b85e80a576",
+              "name": "published_at",
+              "value": "={{ $json.published_at }}",
+              "type": "string"
+            },
+            {
+              "id": "8f4f4e22-c1c2-432d-bc4a-2e0a7fcf8569",
+              "name": "approval_notes",
+              "value": "={{ $json.approval_notes || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -128,
+        624
+      ],
+      "id": "a14c67d2-40a4-406a-9337-2bf9df181522",
+      "name": "RESUMIR HISTÓRICO EDITORIAL"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "editorial_history",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        80,
+        624
+      ],
+      "id": "9174ac7d-656e-4d35-a0c1-007036729f1f",
+      "name": "AGRUPAR HISTÓRICO EDITORIAL"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        560,
+        288
+      ],
+      "id": "127e5bc6-90d4-4ce8-b334-826878b70754",
+      "name": "MONTAR MEMÓRIA ESTRATÉGICA"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8cabf53d-3572-4e16-aed0-2e4a535f0eab",
+              "name": "tem_conteudo_hoje",
+              "value": "={{\n  ($json.editorial_history || []).some(item =>\n    item.plan_date === $now.toISODate() &&\n    ['pending_approval', 'approved', 'scheduled', 'published'].includes(item.status)\n  )\n}}",
+              "type": "boolean"
+            },
+            {
+              "id": "e0071e88-8531-43c6-b90b-1fc04c38879e",
+              "name": "quantidade_conteudos_hoje",
+              "value": "={{\n  Number($json.quantidade_conteudos_hoje || 0) > 0 &&\n  $('APP | NORMALIZAR COMANDO').first().json.acao !== 'GERAR_NOVO'\n}}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        624
+      ],
+      "id": "56683a0b-9407-4121-bc95-b7ef091c1f67",
+      "name": "VERIFICAR CALENDÁRIO DO DIA"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "71b40a7a-54ee-43d9-aa85-10bb5c47010d",
+              "leftValue": "={{\n  $json.tem_conteudo_hoje &&\n  $('APP | NORMALIZAR COMANDO').first().json.acao !== 'GERAR_NOVO'\n}}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        496,
+        624
+      ],
+      "id": "75f8e758-60ad-4420-8d7e-d4b5b6a4bd18",
+      "name": "JÁ TEM CONTEÚDO HOJE?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "595e70e0-0b7a-409c-a3f3-c5c8e526486d",
+              "name": "calendar_message",
+              "value": "={{\n(() => {\n  const historico =\n    $('AGRUPAR HISTÓRICO EDITORIAL').first().json.editorial_history || [];\n\n  const hoje = historico.filter(item =>\n    item.plan_date === $now.toISODate() &&\n    ['pending_approval', 'approved', 'scheduled', 'published'].includes(item.status)\n  );\n\n  const lista = hoje.map((item, index) =>\n`${index + 1}. *${item.main_theme}*\nPilar: ${item.content_pillar}\nFormato: ${item.main_format}\nStatus: ${item.status}`\n  ).join('\\n\\n');\n\n return `⚠️ *JÁ EXISTE CONTEÚDO PARA HOJE*\n\nEncontrei ${hoje.length} conteúdo(s) já planejado(s) para ${$now.toFormat('dd/MM/yyyy')}.\n\n📅 *Conteúdos de hoje:*\n\n${lista}\n\n──────────────\n\nO que deseja fazer?\n\n📌 *USAR EXISTENTE*\nReabrir o conteúdo que já está planejado.\n\n➕ *GERAR NOVO*\nCriar uma nova pauta mesmo já existindo conteúdo para hoje.`;\n})()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        736,
+        608
+      ],
+      "id": "54993daa-e135-43e4-9bb8-c37223897e95",
+      "name": "MONTAR AVISO DE CONTEÚDO EXISTENTE"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=existing_content_warning"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR AVISO DE CONTEÚDO EXISTENTE').first().json.calendar_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[\"USAR_EXISTENTE\", \"GERAR_NOVO\"]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        944,
+        608
+      ],
+      "id": "189655c5-5d8c-48c8-a449-b257aa7a04ec",
+      "name": "APP | EXISTING_CONTENT_WARNING",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "plan_date",
+              "condition": "eq",
+              "keyValue": "={{ $now.toISODate() }}"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        832,
+        1856
+      ],
+      "id": "ab4469a6-b526-4cde-b598-68d735b04a71",
+      "name": "BUSCAR PLANO EXISTENTE DE HOJE",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_items",
+        "returnAll": true,
+        "orderBy": "sequence_order.asc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO EXISTENTE DE HOJE').first().json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        1856
+      ],
+      "id": "bf70c3ac-0f00-466f-8a4e-193a899d1703",
+      "name": "BUSCAR CONTEÚDOS DO PLANO EXISTENTE",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "conteudos_existentes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        1856
+      ],
+      "id": "1b1ad49d-28f0-49c6-b78a-a1564f8b811c",
+      "name": "AGRUPAR CONTEÚDO EXISTENTE"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1905c1a-cfe4-4601-a5a7-86e074fd9093",
+              "name": "existing_content_message",
+              "value": "={{\n(() => {\n  const itens =\n    $('AGRUPAR CONTEÚDO EXISTENTE').first().json.conteudos_existentes || [];\n\n  const principal = itens.find(item =>\n    String(item.content_type || '').toLowerCase() !== 'story'\n  );\n\n  const stories = itens\n    .filter(item =>\n      String(item.content_type || '').toLowerCase() === 'story'\n    )\n    .sort((a, b) =>\n      Number(a.sequence_order || 0) - Number(b.sequence_order || 0)\n    );\n\n  if (!principal && stories.length === 0) {\n    return '⚠️ Não encontrei conteúdo vinculado a este planejamento.';\n  }\n\n  let roteiro = '';\n\n  if (principal && principal.script) {\n    try {\n      const cenas = JSON.parse(principal.script);\n\n      if (Array.isArray(cenas)) {\n        roteiro = cenas\n          .map((cena, index) =>\n            `${cena.ordem || index + 1}. ${cena.texto || ''}`\n          )\n          .join('\\n');\n      } else {\n        roteiro = principal.script;\n      }\n    } catch (e) {\n      roteiro = principal.script;\n    }\n  }\n\n  const storiesTexto = stories\n    .map((story, index) => {\n\n      let interacao = '';\n\n      if (story.cta) {\n        try {\n          const cta = JSON.parse(story.cta);\n\n          if (cta && cta.tipo && cta.tipo !== 'nenhuma') {\n            interacao = `\\n🎯 Interação: ${cta.tipo}`;\n\n            if (cta.opcoes && cta.opcoes.length) {\n              interacao += ` — ${cta.opcoes.join(' / ')}`;\n            }\n          }\n        } catch (e) {\n          interacao = `\\n🎯 Interação: ${story.cta}`;\n        }\n      }\n\n      return `*Story ${story.sequence_order || index + 1}*\n\n${story.script || ''}\n\n🎥 *Visual*\n${story.visual_brief || 'Sem orientação visual.'}${interacao}`;\n    })\n    .join('\\n\\n');\n\n  return `📌 *CONTEÚDO EXISTENTE*\n\nEste é o conteúdo mais recente planejado para hoje.\n\n🎬 *${String(principal?.content_type || 'CONTEÚDO').toUpperCase()}*\n\n🔥 *Gancho*\n${principal?.hook || ''}\n\n🎥 *Roteiro*\n${roteiro}\n\n📝 *Legenda*\n${principal?.caption || ''}\n\n👉 *CTA*\n${principal?.cta || ''}\n\n📱 *STORIES*\n\n${storiesTexto}\n\n──────────────\n\nResponda:\n\n✅ *APROVAR*\n\n✏️ *ALTERAR - escreva o que deseja mudar*\n\n❌ *REJEITAR*`;\n})()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1456,
+        1856
+      ],
+      "id": "94049d53-4708-457b-95f7-89e57354cf84",
+      "name": "MONTAR CONTEÚDO EXISTENTE"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=existing_content"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR CONTEÚDO EXISTENTE').first().json.existing_content_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        1856
+      ],
+      "id": "47e091e3-f978-4f28-9c20-99147ba247f8",
+      "name": "APP | EXISTING_CONTENT",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const pedido = ($json.pedido_agendamento || '')\n  .trim()\n  .toUpperCase();\n\nconst timeZone = 'America/Sao_Paulo';\n\n// Descobre a data de hoje em São Paulo\nconst partes = new Intl.DateTimeFormat('en-CA', {\n  timeZone,\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n}).formatToParts(new Date());\n\nconst anoHoje = Number(partes.find(p => p.type === 'year').value);\nconst mesHoje = Number(partes.find(p => p.type === 'month').value);\nconst diaHoje = Number(partes.find(p => p.type === 'day').value);\n\nfunction formatarDataUTC(data) {\n  const ano = data.getUTCFullYear();\n  const mes = String(data.getUTCMonth() + 1).padStart(2, '0');\n  const dia = String(data.getUTCDate()).padStart(2, '0');\n\n  return `${ano}-${mes}-${dia}`;\n}\n\nlet data;\nlet horario;\n\n// HOJE 19:00\nif (pedido.startsWith('HOJE ')) {\n  const hoje = new Date(Date.UTC(\n    anoHoje,\n    mesHoje - 1,\n    diaHoje\n  ));\n\n  data = formatarDataUTC(hoje);\n  horario = pedido.replace(/^HOJE\\s+/, '').trim();\n}\n\n// AMANHÃ 19:00\nelse if (\n  pedido.startsWith('AMANHÃ ') ||\n  pedido.startsWith('AMANHA ')\n) {\n  const amanha = new Date(Date.UTC(\n    anoHoje,\n    mesHoje - 1,\n    diaHoje + 1\n  ));\n\n  data = formatarDataUTC(amanha);\n\n  horario = pedido\n    .replace(/^AMANHÃ\\s+/, '')\n    .replace(/^AMANHA\\s+/, '')\n    .trim();\n}\n\n// 25/09/2026 19:00\nelse {\n  const match = pedido.match(\n    /^(\\d{2})\\/(\\d{2})\\/(\\d{4})\\s+(\\d{2}):(\\d{2})$/\n  );\n\n  if (!match) {\n    return {\n      ...$json,\n      agendamento_valido: false,\n      erro_agendamento: 'Formato de data inválido.'\n    };\n  }\n\n  const [, dia, mes, ano, hora, minuto] = match;\n\n  const testeData = new Date(Date.UTC(\n    Number(ano),\n    Number(mes) - 1,\n    Number(dia)\n  ));\n\n  const dataValida =\n    testeData.getUTCFullYear() === Number(ano) &&\n    testeData.getUTCMonth() + 1 === Number(mes) &&\n    testeData.getUTCDate() === Number(dia);\n\n  if (!dataValida) {\n    return {\n      ...$json,\n      agendamento_valido: false,\n      erro_agendamento: 'A data informada não existe.'\n    };\n  }\n\n  data = `${ano}-${mes}-${dia}`;\n  horario = `${hora}:${minuto}`;\n}\n\n// Valida horário\nif (!/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(horario)) {\n  return {\n    ...$json,\n    agendamento_valido: false,\n    erro_agendamento: 'Horário inválido.'\n  };\n}\n\nreturn {\n  ...$json,\n  agendamento_valido: true,\n  scheduled_for: `${data}T${horario}:00-03:00`\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2672,
+        2000
+      ],
+      "id": "229b7456-9b3b-4d29-9b58-ae422f02b355",
+      "name": "INTERPRETAR AGENDAMENTO",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e4f09af4-cea4-4638-bbca-7c72dfb940bf",
+              "leftValue": "={{ $json.agendamento_valido }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2464,
+        2000
+      ],
+      "id": "f1df16f4-b089-4bcc-8c0e-6b8f25ddd0e1",
+      "name": "AGENDAMENTO VÁLIDO?",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 10,
+        "orderBy": "approved_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "approved"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2192,
+        1984
+      ],
+      "id": "44ddf09a-4813-4370-905c-7d5d0891bdd1",
+      "name": "BUSCAR PLANO APROVADO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO APROVADO').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "scheduled"
+            },
+            {
+              "fieldId": "scheduled_for",
+              "fieldValue": "={{ $('INTERPRETAR AGENDAMENTO').first().json.scheduled_for }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        1984
+      ],
+      "id": "89345d36-e767-4ddc-9ab2-378930120544",
+      "name": "AGENDAR PLANO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_items",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO APROVADO').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "scheduled"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        1984
+      ],
+      "id": "71726bdb-9f7d-45dd-912c-7ec23edaaae9",
+      "name": "AGENDAR CONTEÚDOS",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "14b92176-c945-43f6-8c01-6c13da154ebc",
+              "name": "schedule_confirmation_message",
+              "value": "={{\n(() => {\n  const scheduled =\n    $('INTERPRETAR AGENDAMENTO').first().json.scheduled_for;\n\n  const data = new Date(scheduled);\n\n  const formatada = data.toLocaleString('pt-BR', {\n    timeZone: 'America/Sao_Paulo',\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n\n  const plano = $('BUSCAR PLANO APROVADO').first().json;\n\n  return `📅 *CONTEÚDO AGENDADO!*\n\nO conteúdo entrou no calendário editorial.\n\n💡 *Tema*\n${plano.main_theme}\n\n📌 *Pilar*\n${plano.content_pillar}\n\n🎬 *Formato*\n${plano.main_format}\n\n🗓 *Publicação*\n${formatada}\n\n✅ Status: *scheduled*\n\nO conteúdo ficará aguardando a etapa de publicação.`;\n})()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1712,
+        2256
+      ],
+      "id": "d4565bfb-0b92-469b-a120-e2ea90c95953",
+      "name": "MONTAR CONFIRMAÇÃO DE AGENDAMENTO",
+      "executeOnce": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=schedule_confirmed"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR CONFIRMAÇÃO DE AGENDAMENTO').first().json.schedule_confirmation_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1920,
+        2432
+      ],
+      "id": "48ea9fb5-10fa-4875-a05e-520c5c17c4b4",
+      "name": "APP | SCHEDULE_CONFIRMED",
+      "executeOnce": true,
+      "disabled": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b231d4a5-9b0d-4903-a61e-4754fbe58e49",
+              "name": "schedule_error_message",
+              "value": "={{\n(() => {\n  const pedido =\n    $('INTERPRETAR AGENDAMENTO').first().json.pedido_agendamento || '';\n\n  const erro =\n    $('INTERPRETAR AGENDAMENTO').first().json.erro_agendamento ||\n    'Não consegui interpretar a data.';\n\n  return `⚠️ *NÃO CONSEGUI AGENDAR*\n\nRecebi:\n\"${pedido}\"\n\n${erro}\n\nEnvie novamente neste formato:\n\n📌 *AGENDAR HOJE 19:00*\n\n📌 *AGENDAR AMANHÃ 19:00*\n\n📌 *AGENDAR 25/09/2026 19:00*\n\nVocê pode escolher qualquer data e horário.`;\n})()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "7ca78499-597e-4dbb-b4d7-79615f15fa5d",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2176,
+        2176
+      ],
+      "id": "7577aeab-9bbb-42a8-9073-2b19b436cfa9",
+      "name": "MONTAR ERRO DE AGENDAMENTO",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=schedule_error"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR ERRO DE AGENDAMENTO').first().json.schedule_error_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        2176
+      ],
+      "id": "ff22bc89-3b24-4cd7-a175-b33da941cca9",
+      "name": "APP | SCHEDULE_ERROR",
+      "disabled": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_items",
+        "returnAll": true,
+        "orderBy": "sequence_order",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "plan_id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PENDENTE').first().json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3216,
+        880
+      ],
+      "id": "4a7842af-31b6-40e2-9a53-9b7e13eec114",
+      "name": "BUSCAR CONTEÚDOS APROVADOS",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "pacote_producao",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        3456,
+        880
+      ],
+      "id": "4fbcbbb5-59d7-41d2-ad6e-24c9597fbd89",
+      "name": "AGRUPAR PACOTE DE PRODUÇÃO"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dd11faac-8122-425c-833d-e163741c16b5",
+              "name": "production_package_message",
+              "value": "={{\n(() => {\n  const plano = $('BUSCAR PLANO PENDENTE').first().json || {};\n  const itens = $json.pacote_producao || [];\n\n  const principal = itens.find(item =>\n    String(item.content_type || '').toLowerCase() !== 'story'\n  ) || {};\n\n  const stories = itens\n    .filter(item =>\n      String(item.content_type || '').toLowerCase() === 'story'\n    )\n    .sort((a, b) =>\n      Number(a.sequence_order || 0) - Number(b.sequence_order || 0)\n    );\n\n  let roteiro = '';\n\n  if (principal.script) {\n    try {\n      const cenas = typeof principal.script === 'string'\n        ? JSON.parse(principal.script)\n        : principal.script;\n\n      roteiro = Array.isArray(cenas)\n        ? cenas.map((cena, index) =>\n            `${cena.ordem || index + 1}. ${cena.texto || ''}`\n          ).join('\\n')\n        : String(principal.script);\n    } catch (e) {\n      roteiro = String(principal.script);\n    }\n  }\n\n  const storiesTexto = stories.map((story, index) => {\n    let interacao = '';\n\n    if (story.cta) {\n      try {\n        const cta = typeof story.cta === 'string'\n          ? JSON.parse(story.cta)\n          : story.cta;\n\n        if (cta?.tipo && cta.tipo !== 'nenhuma') {\n          interacao = `\\n🎯 ${cta.tipo}`;\n\n          if (cta.opcoes?.length) {\n            interacao += `: ${cta.opcoes.join(' / ')}`;\n          }\n        }\n      } catch (e) {}\n    }\n\n    return `*Story ${story.sequence_order || index + 1}*\n${story.script || ''}\n🎥 ${story.visual_brief || ''}${interacao}`;\n  }).join('\\n\\n');\n\n  return `✅ *CONTEÚDO APROVADO*\n\n🎬 *${String(plano.main_format || principal.content_type || '').toUpperCase()}*\n${plano.main_theme || ''}\n\n🔥 *Gancho*\n${principal.hook || ''}\n\n🎥 *Roteiro*\n${roteiro}\n\n📹 *Gravação*\n${principal.visual_brief || ''}\n\n📝 *Legenda*\n${principal.caption || ''}\n\n👉 *CTA*\n${principal.cta || ''}\n\n📱 *STORIES*\n\n${storiesTexto}`;\n})()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3664,
+        880
+      ],
+      "id": "c3dbb662-2e9c-464f-af6a-ea1a33399338",
+      "name": "MONTAR PACOTE FINAL"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=production_package"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR PACOTE COM DIREÇÃO VISUAL').first().json.final_message || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4816,
+        448
+      ],
+      "id": "3f9b1117-adc3-4f27-a787-2d76064c7ea7",
+      "name": "APP | PRODUCTION_PACKAGE",
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ String($('BUSCAR PLANO PENDENTE').first().json.main_format || '').toLowerCase() }}",
+                    "rightValue": "reel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "93eba278-8f03-46a9-a5ee-18c571480273"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b4a788aa-6acf-4bdf-bf3a-94185c5b0cf1",
+                    "leftValue": "={{ String($('BUSCAR PLANO PENDENTE').first().json.main_format || '').toLowerCase() }}",
+                    "rightValue": "carrossel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "carrossel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7fa40ff2-67f2-4d38-9a2b-ee1841274172",
+                    "leftValue": "={{ String($('BUSCAR PLANO PENDENTE').first().json.main_format || '').toLowerCase() }}",
+                    "rightValue": "post",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "post"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        3680,
+        432
+      ],
+      "id": "668d5afc-9ab3-4ab8-9c87-044c21509923",
+      "name": "ROTEAR CRIAÇÃO VISUAL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5bd733d8-a37e-4a97-ac20-21e308fc46b8",
+              "name": "cover_text",
+              "value": "={{\n  (() => {\n    const itens = $('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [];\n    const principal = itens.find(i => String(i.content_type || '').toLowerCase() !== 'story');\n    return principal?.title || principal?.hook || '';\n  })()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "969293e5-e4d8-463e-bfa3-e2cf5e256d8b",
+              "name": "aspect_ratio",
+              "value": "9:16",
+              "type": "string"
+            },
+            {
+              "id": "c09307f1-776b-4db7-b35a-1eaaa5f5b60f",
+              "name": "descricao_foto",
+              "value": "={{\n[\n  '🎨 DIREÇÃO VISUAL',\n  '',\n  '📸 Foto:',\n  'Jonathan no ambiente real relacionado ao conteúdo.',\n  '',\n  '🎯 Enquadramento:',\n  'Foto vertical, de meio corpo, com espaço livre para o título.',\n  '',\n  '🧩 Contexto:',\n  (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n    .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n    .visual_brief || '',\n  '',\n  '✍️ Texto da capa:',\n  (\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .title ||\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .hook ||\n    ''\n  )\n].join('\\n')\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4032,
+        240
+      ],
+      "id": "56842cc8-3edf-4c03-afcc-630aba076096",
+      "name": "MONTAR BRIEF CAPA REEL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e0dc60e6-7d96-4fe5-95d9-6e5ae9cb095a",
+              "name": "brief_carrossel",
+              "value": "={{\n[\n  '📚 DIREÇÃO VISUAL PARA CARROSSEL',\n  '',\n  'Tema:',\n  $('BUSCAR PLANO PENDENTE').first().json.main_theme || '',\n  '',\n  'Objetivo:',\n  $('BUSCAR PLANO PENDENTE').first().json.main_objective || '',\n  '',\n  'Título principal:',\n  (\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .title || ''\n  ),\n  '',\n  'Direção visual geral:',\n  '- visual limpo e profissional',\n  '- identidade coerente com o perfil do Jonathan',\n  '- priorizar fotos reais e elementos do contexto',\n  '- evitar aparência genérica de banco de imagens',\n  '- deixar cada slide com uma ideia principal',\n  '- pouco texto por slide',\n  '',\n  'Estrutura sugerida:',\n  'Slide 1 — Capa com título forte e imagem real do contexto.',\n  'Slide 2 — Apresentar o problema ou situação real.',\n  'Slide 3 — Mostrar o bastidor ou processo.',\n  'Slide 4 — Destacar o principal aprendizado ou transformação.',\n  'Slide 5 — Fechar com conclusão ou CTA.',\n  '',\n  'Fotos sugeridas:',\n  '- Jonathan no ambiente relacionado ao conteúdo',\n  '- detalhes do processo',\n  '- produto, tela, equipamento ou resultado real',\n  '- imagens de apoio que reforcem a narrativa',\n  '',\n  'Evitar:',\n  '- excesso de texto',\n  '- imagens artificiais sem necessidade',\n  '- slides visualmente carregados',\n  '- informações inventadas',\n  '',\n  'Observação:',\n  'A quantidade de slides pode ser ajustada de acordo com o conteúdo aprovado.'\n].join('\\n')\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4032,
+        448
+      ],
+      "id": "4e0caec9-558c-402a-8e8e-8ca874e10661",
+      "name": "MONTAR BRIEF CARROSSEL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3be2ab6e-b70a-4b0c-ac46-7e7950a2f088",
+              "name": "brief_post",
+              "value": "={{\n[\n  '🖼️ DIREÇÃO VISUAL PARA POST',\n  '',\n  'Tema:',\n  $('BUSCAR PLANO PENDENTE').first().json.main_theme || '',\n  '',\n  'Objetivo:',\n  $('BUSCAR PLANO PENDENTE').first().json.main_objective || '',\n  '',\n  'Título sugerido:',\n  (\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .title || ''\n  ),\n  '',\n  'Gancho:',\n  (\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .hook || ''\n  ),\n  '',\n  'Foto sugerida:',\n  'Usar uma foto real do Jonathan ou do contexto diretamente relacionado ao conteúdo.',\n  '',\n  'Enquadramento:',\n  '- imagem vertical ou quadrada',\n  '- assunto principal bem destacado',\n  '- deixar espaço limpo para aplicação de título, se necessário',\n  '- evitar fundo poluído',\n  '- priorizar contexto real do trabalho',\n  '',\n  'Direção visual:',\n  '- visual profissional e natural',\n  '- aparência de marca pessoal',\n  '- boa iluminação',\n  '- cores coerentes com a identidade visual usada no perfil',\n  '- pouco texto na arte',\n  '',\n  'Elementos que podem aparecer:',\n  '- Jonathan',\n  '- produto ou resultado',\n  '- equipamento ou ambiente',\n  '- tela, processo ou bastidor real',\n  '',\n  'Evitar:',\n  '- imagens genéricas de banco',\n  '- pessoas geradas por IA',\n  '- excesso de elementos',\n  '- texto longo dentro da arte',\n  '- informações que não estejam no conteúdo aprovado',\n  '',\n  'Texto sugerido para a arte:',\n  (\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .title ||\n    (($('AGRUPAR PACOTE DE PRODUÇÃO').first().json.pacote_producao || [])\n      .find(item => String(item.content_type || '').toLowerCase() !== 'story') || {})\n      .hook ||\n    ''\n  )\n].join('\\n')\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4032,
+        656
+      ],
+      "id": "8459257d-59a8-438f-959c-ab4d930261a1",
+      "name": "MONTAR BRIEF POST"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1efc0e70-fc94-4553-9bf2-ac35b27180d1",
+              "name": "final_message",
+              "value": "={{\n[\n  $('MONTAR PACOTE FINAL').first().json.production_package_message || '',\n  '',\n  '━━━━━━━━━━━━━━',\n  '',\n  '🎨 *DIREÇÃO VISUAL*',\n  '',\n  $json.descricao_foto ||\n  $json.brief_carrossel ||\n  $json.brief_post ||\n  'Sem direção visual definida.'\n].join('\\n')\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4512,
+        448
+      ],
+      "id": "b16feafd-26b2-48d0-bd98-9ad4c37e55f1",
+      "name": "MONTAR PACOTE COM DIREÇÃO VISUAL"
+    },
+    {
+      "parameters": {
+        "content": "### Nodes que não usarei mais, por enquanto.\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 1152,
+        "width": 1232
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        1520
+      ],
+      "id": "81b8121e-5d91-4848-bb32-4da498a2ef82",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "05259257-3ce4-4181-97c1-8046995473c2",
+              "leftValue": "={{ String($json.pedido_alteracao || '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2112,
+        1152
+      ],
+      "id": "962510da-4e16-411d-9ebe-6a1737200579",
+      "name": "TEM PEDIDO DE ALTERAÇÃO?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6df2c746-b62b-4020-a52a-e8789b5aa556",
+              "name": "alteration_question",
+              "value": "={{\n`✏️ *O que você deseja alterar?*\n\nPode me dizer de forma simples, por exemplo:\n\n• deixe o gancho mais forte\n• deixe mais curto\n• mude a legenda\n• deixe menos técnico\n• altere os Stories\n\nEscreva a alteração que você quer fazer.`\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3024,
+        1344
+      ],
+      "id": "eb733121-a999-4040-a10e-18bb43a9a684",
+      "name": "MONTAR PERGUNTA DE ALTERAÇÃO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=alteration_requested"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR PERGUNTA DE ALTERAÇÃO').first().json.alteration_question || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3232,
+        1344
+      ],
+      "id": "836e2f2d-a713-40a6-bbbf-01e8e1cc752c",
+      "name": "APP | ALTERATION_REQUESTED",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2576,
+        1344
+      ],
+      "id": "52f9ace2-cacf-4a62-b675-24cf3254d6a1",
+      "name": "BUSCAR PLANO PARA MARCAR ALTERAÇÃO",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA MARCAR ALTERAÇÃO').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "AGUARDANDO_PEDIDO_ALTERACAO"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2784,
+        1344
+      ],
+      "id": "93ee27eb-ef6a-4288-a2ae-43fb6924ae9f",
+      "name": "MARCAR AGUARDANDO ALTERAÇÃO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "18323322-633b-498d-a6f3-d112feccabef",
+              "name": "acao",
+              "value": "={{\n(() => {\n  const normalizado = $('APP | NORMALIZAR COMANDO').first().json;\n  const acaoAtual = normalizado.acao || 'CONTEXTO';\n  const pendencia = String($json.approval_notes || '').trim();\n\n  if (acaoAtual !== 'CONTEXTO') return acaoAtual;\n\n  if (pendencia === 'AGUARDANDO_PEDIDO_ALTERACAO') {\n    return 'ALTERAR';\n  }\n\n  if (pendencia === 'AGUARDANDO_MOTIVO_REJEICAO') {\n    return 'REJEITAR';\n  }\n\n  return 'CONTEXTO';\n})()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "30d26209-4829-417e-b7ba-e3cff837c243",
+              "name": "pedido_alteracao",
+              "value": "={{\n(() => {\n  const n = $('APP | NORMALIZAR COMANDO').first().json;\n\n  if ($json.approval_notes === 'AGUARDANDO_PEDIDO_ALTERACAO') {\n    return n.contexto_texto || '';\n  }\n\n  return n.pedido_alteracao || '';\n})()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "1db91a4e-d531-4783-9b02-3e52f4e048a7",
+              "name": "=motivo_rejeicao",
+              "value": "={{\n(() => {\n  const n = $('APP | NORMALIZAR COMANDO').first().json;\n\n  if ($json.approval_notes === 'AGUARDANDO_MOTIVO_REJEICAO') {\n    return n.contexto_texto || '';\n  }\n\n  return n.motivo_rejeicao || '';\n})()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "a5c5fdc1-00c1-4084-b6c5-429e6962a81d",
+              "name": "contexto_texto",
+              "value": "={{ $('APP | NORMALIZAR COMANDO').first().json.contexto_texto || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        880
+      ],
+      "id": "b68eee4b-4fa3-4baa-b597-d6e136a179bf",
+      "name": "RESOLVER AÇÃO PENDENTE"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA ALTERAR').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "={{ $('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        1104
+      ],
+      "id": "a43ca648-5a99-43dc-8fbb-011b234bbbb7",
+      "name": "REGISTRAR PEDIDO DE ALTERAÇÃO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd56bdcd-d50e-49a5-9a79-d1876db26683",
+              "name": "revised_approval_message",
+              "value": "={{\n`✏️ *CONTEÚDO REVISADO*\n\nAlteração solicitada:\n\"${$('APP | NORMALIZAR COMANDO').first().json.pedido_alteracao}\"\n\n🎬 *Conteúdo atualizado*\n\n🔥 *Gancho*\n${$('IA | REVISOR DE CONTEÚDO').first().json.output.conteudo_principal.gancho}\n\n📝 *Legenda*\n${$('IA | REVISOR DE CONTEÚDO').first().json.output.conteudo_principal.legenda}\n\n📱 *Stories*\n${$('IA | REVISOR DE CONTEÚDO').first().json.output.stories.length} Stories revisados.\n\nO que deseja fazer?`\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4640,
+        1280
+      ],
+      "id": "fb7379c3-0f38-4b08-a854-dd1ebab92617",
+      "name": "MONTAR NOVA APROVAÇÃO"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "36609184-ae7c-47b4-a404-1a356c7690bb",
+              "leftValue": "={{ String($json.motivo_rejeicao || '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2096,
+        1584
+      ],
+      "id": "48cb14d5-bd44-4787-8cd2-883520859fe6",
+      "name": "TEM MOTIVO DE REJEIÇÃO?"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        1824
+      ],
+      "id": "fb6748df-254a-44d8-8419-4497796e4d61",
+      "name": "BUSCAR PLANO PARA MARCAR REJEIÇÃO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "ai_content_plan",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('BUSCAR PLANO PARA MARCAR REJEIÇÃO').first().json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "approval_notes",
+              "fieldValue": "AGUARDANDO_MOTIVO_REJEICAO"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2768,
+        1824
+      ],
+      "id": "3ab537d3-727f-4d64-ba34-7fe5b3b183ca",
+      "name": "MARCAR AGUARDANDO MOTIVO REJEIÇÃO",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aab1b11a-ef0b-4e73-b59e-90261e96fb5f",
+              "name": "rejection_question",
+              "value": "={{ `❌ *Por que você quer rejeitar este conteúdo?*  Pode responder de forma simples, por exemplo:  • esse tema não faz sentido hoje • está muito técnico • não gostei da abordagem • prefiro falar de outro assunto  Escreva o motivo da rejeição.` }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2976,
+        1824
+      ],
+      "id": "30691c2c-12bf-480d-9a05-9ed7d4882aea",
+      "name": "MONTAR PERGUNTA DE REJEIÇÃO"
+    },
+    {
+      "parameters": {
+        "tableId": "ai_app_events",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "profile_key",
+              "fieldValue": "=jonathan_ceo_ls"
+            },
+            {
+              "fieldId": "event_type",
+              "fieldValue": "=rejection_reason_requested"
+            },
+            {
+              "fieldId": "message",
+              "fieldValue": "={{ $('MONTAR PERGUNTA DE REJEIÇÃO').first().json.rejection_question || '' }}"
+            },
+            {
+              "fieldId": "actions_json",
+              "fieldValue": "=[]"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3200,
+        1824
+      ],
+      "id": "d6c8e77b-075d-4541-8b8e-eea6254852ca",
+      "name": "APP | REJECTION_REASON_REQUESTED",
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ai_content_plan",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "profile_key",
+              "condition": "eq",
+              "keyValue": "jonathan_ceo_ls"
+            },
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "pending_approval"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        16,
+        880
+      ],
+      "id": "bc18f4fe-37a8-48ba-bb3b-a4d9a2fefa87",
+      "name": "BUSCAR AÇÃO PENDENTE",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "1Yo6VU1KpCmEm2wp",
+          "name": "Supabase | LS Content AI"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "INICIAR ESTRATÉGIA": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PERFIL JONATHAN",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BUSCAR CONTEXTO DO DIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR CONTEXTO DO DIA": {
+      "main": [
+        [
+          {
+            "node": "AGRUPAR CONTEXTO DO DIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGRUPAR CONTEXTO DO DIA": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONTEXTO DA IA",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "BUSCAR PERFIL JONATHAN": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONTEXTO DA IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR CONTEXTO DA IA": {
+      "main": [
+        [
+          {
+            "node": "MONTAR MEMÓRIA ESTRATÉGICA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA | ESTRATEGISTA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ESTRUTURAR ESTRATÉGIA": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "IA | ESTRATEGISTA",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA | ESTRATEGISTA": {
+      "main": [
+        [
+          {
+            "node": "SALVAR PLANO ESTRATÉGICO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SALVAR PLANO ESTRATÉGICO": {
+      "main": [
+        [
+          {
+            "node": "IA | CRIADOR DE CONTEÚDO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA | CRIADOR DE CONTEÚDO",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ESTRUTURAR CONTEÚDO": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "IA | CRIADOR DE CONTEÚDO",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA | CRIADOR DE CONTEÚDO": {
+      "main": [
+        [
+          {
+            "node": "SALVAR CONTEÚDO PRINCIPAL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SEPARAR STORIES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEPARAR STORIES": {
+      "main": [
+        [
+          {
+            "node": "SALVAR STORIES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SALVAR STORIES": {
+      "main": [
+        [
+          {
+            "node": "ENVIAR PARA APROVAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ENVIAR PARA APROVAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MONTAR MENSAGEM DE APROVAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR MENSAGEM DE APROVAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "APP | APPROVAL_REQUESTED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR AÇÃO PENDENTE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DECISÃO JONATHAN": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PLANO PENDENTE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TEM PEDIDO DE ALTERAÇÃO?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TEM MOTIVO DE REJEIÇÃO?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IA | INTERPRETAR CONTEXTO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "INICIAR GERAÇÃO DE CONTEÚDO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCAR PLANO EXISTENTE DE HOJE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "INICIAR GERAÇÃO DE CONTEÚDO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO PENDENTE": {
+      "main": [
+        [
+          {
+            "node": "APROVAR PLANO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APROVAR PLANO": {
+      "main": [
+        [
+          {
+            "node": "APROVAR CONTEÚDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APROVAR CONTEÚDOS": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR CONTEÚDOS APROVADOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO PARA ALTERAR": {
+      "main": [
+        [
+          {
+            "node": "REGISTRAR PEDIDO DE ALTERAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR CONTEÚDOS PARA ALTERAR": {
+      "main": [
+        [
+          {
+            "node": "AGRUPAR CONTEÚDOS ATUAIS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGRUPAR CONTEÚDOS ATUAIS": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PEDIDO DE ALTERAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR PEDIDO DE ALTERAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "IA | REVISOR DE CONTEÚDO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA | REVISOR DE CONTEÚDO",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "IA | REVISOR DE CONTEÚDO",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA | REVISOR DE CONTEÚDO": {
+      "main": [
+        [
+          {
+            "node": "ATUALIZAR REEL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SEPARAR STORIES REVISADOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SEPARAR STORIES REVISADOS": {
+      "main": [
+        [
+          {
+            "node": "ATUALIZAR STORIES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ATUALIZAR STORIES": {
+      "main": [
+        [
+          {
+            "node": "ATUALIZAR PLANO APÓS REVISÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ATUALIZAR PLANO APÓS REVISÃO": {
+      "main": [
+        [
+          {
+            "node": "MONTAR NOVA APROVAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO PARA REJEITAR": {
+      "main": [
+        [
+          {
+            "node": "REJEITAR PLANO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "REJEITAR PLANO": {
+      "main": [
+        [
+          {
+            "node": "REJEITAR CONTEÚDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "REJEITAR CONTEÚDOS": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONFIRMAÇÃO REJEIÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR CONFIRMAÇÃO REJEIÇÃO": {
+      "main": [
+        [
+          {
+            "node": "APP | REJECTED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA | INTERPRETAR CONTEXTO",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "IA | INTERPRETAR CONTEXTO",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SALVAR CONTEXTO DO WHATSAPP": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONFIRMAÇÃO CONTEXTO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA | INTERPRETAR CONTEXTO": {
+      "main": [
+        [
+          {
+            "node": "SALVAR CONTEXTO DO WHATSAPP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR CONFIRMAÇÃO CONTEXTO": {
+      "main": [
+        [
+          {
+            "node": "APP | CONTEXT_SAVED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INICIAR GERAÇÃO DE CONTEÚDO": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PERFIL JONATHAN",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BUSCAR CONTEXTO DO DIA",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BUSCAR HISTÓRICO EDITORIAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR HISTÓRICO EDITORIAL": {
+      "main": [
+        [
+          {
+            "node": "RESUMIR HISTÓRICO EDITORIAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RESUMIR HISTÓRICO EDITORIAL": {
+      "main": [
+        [
+          {
+            "node": "AGRUPAR HISTÓRICO EDITORIAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGRUPAR HISTÓRICO EDITORIAL": {
+      "main": [
+        [
+          {
+            "node": "VERIFICAR CALENDÁRIO DO DIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR MEMÓRIA ESTRATÉGICA": {
+      "main": [
+        [
+          {
+            "node": "IA | ESTRATEGISTA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VERIFICAR CALENDÁRIO DO DIA": {
+      "main": [
+        [
+          {
+            "node": "JÁ TEM CONTEÚDO HOJE?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JÁ TEM CONTEÚDO HOJE?": {
+      "main": [
+        [
+          {
+            "node": "MONTAR AVISO DE CONTEÚDO EXISTENTE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MONTAR MEMÓRIA ESTRATÉGICA",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "MONTAR AVISO DE CONTEÚDO EXISTENTE": {
+      "main": [
+        [
+          {
+            "node": "APP | EXISTING_CONTENT_WARNING",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO EXISTENTE DE HOJE": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR CONTEÚDOS DO PLANO EXISTENTE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR CONTEÚDOS DO PLANO EXISTENTE": {
+      "main": [
+        [
+          {
+            "node": "AGRUPAR CONTEÚDO EXISTENTE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGRUPAR CONTEÚDO EXISTENTE": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONTEÚDO EXISTENTE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR CONTEÚDO EXISTENTE": {
+      "main": [
+        [
+          {
+            "node": "APP | EXISTING_CONTENT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INTERPRETAR AGENDAMENTO": {
+      "main": [
+        [
+          {
+            "node": "AGENDAMENTO VÁLIDO?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENDAMENTO VÁLIDO?": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PLANO APROVADO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MONTAR ERRO DE AGENDAMENTO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO APROVADO": {
+      "main": [
+        [
+          {
+            "node": "AGENDAR PLANO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENDAR PLANO": {
+      "main": [
+        [
+          {
+            "node": "AGENDAR CONTEÚDOS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGENDAR CONTEÚDOS": {
+      "main": [
+        [
+          {
+            "node": "MONTAR CONFIRMAÇÃO DE AGENDAMENTO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR CONFIRMAÇÃO DE AGENDAMENTO": {
+      "main": [
+        [
+          {
+            "node": "APP | SCHEDULE_CONFIRMED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR ERRO DE AGENDAMENTO": {
+      "main": [
+        [
+          {
+            "node": "APP | SCHEDULE_ERROR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR CONTEÚDOS APROVADOS": {
+      "main": [
+        [
+          {
+            "node": "AGRUPAR PACOTE DE PRODUÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AGRUPAR PACOTE DE PRODUÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PACOTE FINAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR PACOTE FINAL": {
+      "main": [
+        [
+          {
+            "node": "ROTEAR CRIAÇÃO VISUAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROTEAR CRIAÇÃO VISUAL": {
+      "main": [
+        [
+          {
+            "node": "MONTAR BRIEF CAPA REEL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MONTAR BRIEF CARROSSEL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MONTAR BRIEF POST",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR BRIEF CAPA REEL": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PACOTE COM DIREÇÃO VISUAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR BRIEF CARROSSEL": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PACOTE COM DIREÇÃO VISUAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR BRIEF POST": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PACOTE COM DIREÇÃO VISUAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR PACOTE COM DIREÇÃO VISUAL": {
+      "main": [
+        [
+          {
+            "node": "APP | PRODUCTION_PACKAGE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEM PEDIDO DE ALTERAÇÃO?": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PLANO PARA ALTERAR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCAR PLANO PARA MARCAR ALTERAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR PERGUNTA DE ALTERAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "APP | ALTERATION_REQUESTED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO PARA MARCAR ALTERAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MARCAR AGUARDANDO ALTERAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MARCAR AGUARDANDO ALTERAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PERGUNTA DE ALTERAÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RESOLVER AÇÃO PENDENTE": {
+      "main": [
+        [
+          {
+            "node": "DECISÃO JONATHAN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "REGISTRAR PEDIDO DE ALTERAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR CONTEÚDOS PARA ALTERAR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR NOVA APROVAÇÃO": {
+      "main": [
+        [
+          {
+            "node": "APP | APPROVAL_REVISED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEM MOTIVO DE REJEIÇÃO?": {
+      "main": [
+        [
+          {
+            "node": "BUSCAR PLANO PARA REJEITAR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "BUSCAR PLANO PARA MARCAR REJEIÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR PLANO PARA MARCAR REJEIÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MARCAR AGUARDANDO MOTIVO REJEIÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MARCAR AGUARDANDO MOTIVO REJEIÇÃO": {
+      "main": [
+        [
+          {
+            "node": "MONTAR PERGUNTA DE REJEIÇÃO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MONTAR PERGUNTA DE REJEIÇÃO": {
+      "main": [
+        [
+          {
+            "node": "APP | REJECTION_REASON_REQUESTED",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BUSCAR AÇÃO PENDENTE": {
+      "main": [
+        [
+          {
+            "node": "RESOLVER AÇÃO PENDENTE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APP | RECEBER COMANDO": {
+      "main": [
+        [
+          {
+            "node": "APP | NORMALIZAR COMANDO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APP | NORMALIZAR COMANDO": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "26347de6-3ec2-4f38-9526-30165948b246",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fa6b6c2a92e13ef7c2723dc97679debe80a6ca18c25d63e8e018a410701586dd"
+  },
+  "nodeGroups": [],
+  "id": "OPQOnmoV84Ac6HWw",
+  "tags": []
+}
