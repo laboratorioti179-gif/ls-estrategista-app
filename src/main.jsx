@@ -33,6 +33,40 @@ function Stat({label,value,icon}){return <div className="stat panel"><div><small
 function Empty({text}){return <div className="empty"><Sparkles size={28}/><p>{text}</p></div>}
 function humanEvent(s){return ({approval_requested:'Aprovação solicitada',approval_revised:'Conteúdo revisado',rejected:'Estratégia rejeitada',context_saved:'Contexto registrado',existing_content_warning:'Conteúdo existente',existing_content:'Conteúdo encontrado',schedule_confirmed:'Agendamento confirmado',schedule_error:'Erro no agendamento',production_package:'Pacote final',alteration_requested:'Alteração solicitada',rejection_reason_requested:'Motivo da rejeição'})[s]||s?.replaceAll('_',' ')||'Atualização'}
 function parseActions(value){try{let a=typeof value==='string'?JSON.parse(value):value;return Array.isArray(a)?a.filter(x=>typeof x==='string'):[]}catch{return []}}
-function ContentItem({item}){let formatted=item.script;try{let parsed=JSON.parse(formatted);if(Array.isArray(parsed))formatted=parsed.map(x=>x.texto||x.text||'').join('\n')}catch{}return <div className="item"><div className="item-head"><b>{item.title||item.content_type}</b><span className="status draft">{item.content_type||'post'}</span></div>{item.hook&&<p><b>Gancho:</b> {item.hook}</p>}{formatted&&<div className="script">{formatted}</div>}{item.caption&&<p><b>Legenda:</b> {item.caption}</p>}{item.cta&&<p><b>CTA:</b> {item.cta}</p>}{item.visual_brief&&<details><summary>Orientações visuais</summary><p>{item.visual_brief}</p></details>}</div>}
+function parseStoryInteraction(value) {
+ if (!value) return null;
+ if (typeof value === 'object' && !Array.isArray(value)) return value;
+ if (typeof value !== 'string') return null;
+ try {
+  const parsed = JSON.parse(value);
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+ } catch { return null; }
+}
+function ContentItem({item}) {
+ let formatted = item.script;
+ try {
+  const parsed = typeof formatted === 'string' ? JSON.parse(formatted) : formatted;
+  if (Array.isArray(parsed)) formatted = parsed.map(x => x.texto || x.text || '').join('\n');
+ } catch { /* texto simples */ }
+ const isStory = String(item.content_type || '').toLowerCase() === 'story';
+ const interaction = isStory ? parseStoryInteraction(item.cta) : null;
+ const interactionType = String(interaction?.tipo || '').trim().toLowerCase();
+ const hasInteraction = interaction && interactionType && interactionType !== 'nenhuma' && interactionType !== 'null';
+ const interactionLabels = { enquete: 'Enquete', quiz: 'Quiz', pergunta: 'Caixa de perguntas', perguntas: 'Caixa de perguntas', slider: 'Controle deslizante', link: 'Link' };
+ const interactionOptions = Array.isArray(interaction?.opcoes) ? interaction.opcoes.filter(x => typeof x === 'string' && x.trim()) : [];
+ return <div className="item">
+  <div className="item-head"><b>{item.title || item.content_type}</b><span className="status draft">{item.content_type || 'post'}</span></div>
+  {item.hook && <p><b>Gancho:</b> {item.hook}</p>}
+  {formatted && <div className="script">{formatted}</div>}
+  {item.caption && <p><b>Legenda:</b> {item.caption}</p>}
+  {hasInteraction ? <div className="story-interaction">
+   <p><b>Interação sugerida:</b> {interactionLabels[interactionType] || interaction.tipo}</p>
+   {interaction.pergunta && <p>{interaction.pergunta}</p>}
+   {interactionOptions.length > 0 && <div className="story-options">{interactionOptions.map((option, index) => <div key={`${index}-${option}`} className="story-option">{option}</div>)}</div>}
+   {interaction.url && <p><b>Link:</b> {interaction.url}</p>}
+  </div> : (item.cta && !interaction && <p><b>CTA:</b> {item.cta}</p>)}
+  {item.visual_brief && <details><summary>Orientações visuais</summary><p>{item.visual_brief}</p></details>}
+ </div>;
+}
 function Calendar({plans}){const [shift,setShift]=useState(0);const today=new Date();const date=new Date(today.getFullYear(),today.getMonth()+shift,1),year=date.getFullYear(),month=date.getMonth();const days=new Date(year,month+1,0).getDate();const first=(new Date(year,month,1).getDay()+6)%7;const cells=[...Array(first).fill(null),...Array.from({length:days},(_,i)=>i+1)];const byDay=(d)=>plans.filter(p=>{const v=p.plan_date||p.created_at;return v?.slice(0,10)===`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`});return <><div className="calendar-head"><button className="iconbtn" onClick={()=>setShift(shift-1)}>‹</button><h2>{date.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</h2><button className="iconbtn" onClick={()=>setShift(shift+1)}>›</button></div><div className="calendar-grid">{['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map(d=><div className="weekday" key={d}>{d}</div>)}{cells.map((d,i)=><div key={i} className="day">{d&&<><small>{d}</small>{byDay(d).map(p=><span key={p.id} className={'calendar-event '+p.status} title={p.main_theme}>{p.main_theme}</span>)}</>}</div>)}</div></>}
 createRoot(document.getElementById('root')).render(<App/>);
